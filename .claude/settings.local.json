@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(//c/xampp/htdocs/**)",
-      "Bash(npm create *)",
-      "Bash(php artisan *)"
-    ]
-  }
-}
