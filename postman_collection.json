@@ -1,0 +1,434 @@
+{
+  "info": {
+    "name": "Restaurant QR Ordering API",
+    "description": "Laravel 12 REST API for a single-restaurant QR code ordering system.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api/v1", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "qr_token", "value": "", "type": "string" },
+    { "key": "order_number", "value": "", "type": "string" },
+    { "key": "order_id", "value": "1", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('token', body.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@restaurant.test\",\n  \"password\": \"password\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public - Customer Journey",
+      "item": [
+        {
+          "name": "Get Menu by QR Token",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/menu/{{qr_token}}", "host": ["{{base_url}}"], "path": ["menu", "{{qr_token}}"] },
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Validate Cart",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/cart/validate", "host": ["{{base_url}}"], "path": ["cart", "validate"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qr_token\": \"{{qr_token}}\",\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 2 }\n  ]\n}"
+            },
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Place Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('order_number', body.data.order_number);",
+                  "    pm.collectionVariables.set('order_id', body.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/orders", "host": ["{{base_url}}"], "path": ["orders"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qr_token\": \"{{qr_token}}\",\n  \"customer_name\": \"John Doe\",\n  \"customer_phone\": \"0123456789\",\n  \"notes\": \"No spicy please\",\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 2 },\n    { \"product_id\": 10, \"quantity\": 1 }\n  ]\n}"
+            },
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "Track Order",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/orders/track/{{order_number}}", "host": ["{{base_url}}"], "path": ["orders", "track", "{{order_number}}"] },
+            "auth": { "type": "noauth" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders (Staff)",
+      "item": [
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [{ "key": "status", "value": "pending" }]
+            }
+          }
+        },
+        {
+          "name": "Show Order",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["orders", "{{order_id}}"] }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/orders/{{order_id}}/status", "host": ["{{base_url}}"], "path": ["orders", "{{order_id}}", "status"] },
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"confirmed\"\n}" }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/orders/{{order_id}}/status", "host": ["{{base_url}}"], "path": ["orders", "{{order_id}}", "status"] },
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"cancelled\",\n  \"cancelled_reason\": \"Customer changed their mind\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kitchen",
+      "item": [
+        {
+          "name": "Kitchen Dashboard",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/kitchen/dashboard", "host": ["{{base_url}}"], "path": ["kitchen", "dashboard"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cashier",
+      "item": [
+        {
+          "name": "List Payments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/cashier/payments?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["cashier", "payments"],
+              "query": [{ "key": "status", "value": "pending" }]
+            }
+          }
+        },
+        {
+          "name": "Mark Payment Paid",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/cashier/payments/{{order_id}}/pay", "host": ["{{base_url}}"], "path": ["cashier", "payments", "{{order_id}}", "pay"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Dashboard & Logs",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/dashboard", "host": ["{{base_url}}"], "path": ["admin", "dashboard"] }
+          }
+        },
+        {
+          "name": "Activity Logs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/activity-logs", "host": ["{{base_url}}"], "path": ["admin", "activity-logs"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Restaurant Settings",
+      "item": [
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/settings", "host": ["{{base_url}}"], "path": ["admin", "settings"] }
+          }
+        },
+        {
+          "name": "Update Settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/settings", "host": ["{{base_url}}"], "path": ["admin", "settings"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"The QR Bistro\",\n  \"tax_percentage\": 10,\n  \"service_charge_percentage\": 5\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Tables",
+      "item": [
+        {
+          "name": "List Tables",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/tables", "host": ["{{base_url}}"], "path": ["admin", "tables"] }
+          }
+        },
+        {
+          "name": "Create Table",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/tables", "host": ["{{base_url}}"], "path": ["admin", "tables"] },
+            "body": { "mode": "raw", "raw": "{\n  \"table_number\": \"T09\",\n  \"capacity\": 4\n}" }
+          }
+        },
+        {
+          "name": "Show Table",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/tables/1", "host": ["{{base_url}}"], "path": ["admin", "tables", "1"] }
+          }
+        },
+        {
+          "name": "Update Table",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/tables/1", "host": ["{{base_url}}"], "path": ["admin", "tables", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"capacity\": 6,\n  \"status\": \"reserved\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Table",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/admin/tables/1", "host": ["{{base_url}}"], "path": ["admin", "tables", "1"] }
+          }
+        },
+        {
+          "name": "Regenerate QR Code",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/admin/tables/1/regenerate-qr", "host": ["{{base_url}}"], "path": ["admin", "tables", "1", "regenerate-qr"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/categories", "host": ["{{base_url}}"], "path": ["admin", "categories"] }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/categories", "host": ["{{base_url}}"], "path": ["admin", "categories"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Hot Beverages\",\n  \"sort_order\": 5\n}" }
+          }
+        },
+        {
+          "name": "Show Category",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/categories/1", "host": ["{{base_url}}"], "path": ["admin", "categories", "1"] }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/categories/1", "host": ["{{base_url}}"], "path": ["admin", "categories", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Appetizers & Starters\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/admin/categories/1", "host": ["{{base_url}}"], "path": ["admin", "categories", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Products",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/admin/products?available=1",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "products"],
+              "query": [{ "key": "available", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/products", "host": ["{{base_url}}"], "path": ["admin", "products"] },
+            "body": { "mode": "raw", "raw": "{\n  \"category_id\": 1,\n  \"name\": \"Beef Noodle Soup\",\n  \"description\": \"Rich beef broth with rice noodles\",\n  \"price\": 6.5,\n  \"preparation_time\": 15\n}" }
+          }
+        },
+        {
+          "name": "Show Product",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/products/1", "host": ["{{base_url}}"], "path": ["admin", "products", "1"] }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/products/1", "host": ["{{base_url}}"], "path": ["admin", "products", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"price\": 7.0,\n  \"available\": false\n}" }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/admin/products/1", "host": ["{{base_url}}"], "path": ["admin", "products", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Staff Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/users", "host": ["{{base_url}}"], "path": ["admin", "users"] }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/users", "host": ["{{base_url}}"], "path": ["admin", "users"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"New Cashier\",\n  \"email\": \"cashier2@restaurant.test\",\n  \"password\": \"password123\",\n  \"role\": \"cashier\"\n}" }
+          }
+        },
+        {
+          "name": "Show User",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/admin/users/1", "host": ["{{base_url}}"], "path": ["admin", "users", "1"] }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/admin/users/1", "host": ["{{base_url}}"], "path": ["admin", "users", "1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"is_active\": false\n}" }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/admin/users/1", "host": ["{{base_url}}"], "path": ["admin", "users", "1"] }
+          }
+        }
+      ]
+    }
+  ]
+}
