@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Admin\ActivityLogController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Admin\ProductController;
+use App\Http\Controllers\Api\V1\Admin\ReportController;
 use App\Http\Controllers\Api\V1\Admin\RestaurantSettingController;
 use App\Http\Controllers\Api\V1\Admin\TableController;
 use App\Http\Controllers\Api\V1\Admin\UserController;
@@ -18,13 +19,18 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     // Public: authentication
-    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/login', [AuthController::class, 'login'])
+        ->middleware('throttle:login')
+        ->withoutMiddleware('throttle:api');
 
     // Public: customer QR ordering journey
     Route::get('/menu/{qrToken}', [MenuController::class, 'show']);
     Route::post('/cart/validate', [CartController::class, 'validateCart']);
-    Route::post('/orders', [OrderController::class, 'store']);
+    Route::post('/orders', [OrderController::class, 'store'])
+        ->middleware('throttle:orders')
+        ->withoutMiddleware('throttle:api');
     Route::get('/orders/track/{orderNumber}', [OrderController::class, 'track']);
+    Route::get('/orders/{orderNumber}/receipt', [OrderController::class, 'receipt']);
 
     // Authenticated (any staff role)
     Route::middleware('auth:sanctum')->group(function () {
@@ -53,6 +59,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware('role:admin')->prefix('admin')->group(function () {
             Route::get('/dashboard', [DashboardController::class, 'index']);
             Route::get('/activity-logs', [ActivityLogController::class, 'index']);
+            Route::get('/reports/revenue', [ReportController::class, 'revenue']);
 
             Route::get('/settings', [RestaurantSettingController::class, 'show']);
             Route::put('/settings', [RestaurantSettingController::class, 'update']);

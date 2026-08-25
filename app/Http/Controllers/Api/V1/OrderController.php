@@ -6,15 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\PlaceOrderRequest;
 use App\Http\Requests\Order\UpdateOrderStatusRequest;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\ReceiptResource;
+use App\Http\Resources\RestaurantResource;
 use App\Http\Resources\TrackOrderResource;
 use App\Models\Order;
 use App\Services\OrderService;
+use App\Services\RestaurantSettingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    public function __construct(protected OrderService $orderService) {}
+    public function __construct(
+        protected OrderService $orderService,
+        protected RestaurantSettingService $restaurantSettingService,
+    ) {}
 
     public function store(PlaceOrderRequest $request): JsonResponse
     {
@@ -34,6 +40,16 @@ class OrderController extends Controller
         $order = $this->orderService->findByOrderNumber($orderNumber);
 
         return $this->success(new TrackOrderResource($order));
+    }
+
+    public function receipt(string $orderNumber): JsonResponse
+    {
+        $order = $this->orderService->findByOrderNumber($orderNumber);
+
+        return $this->success([
+            'restaurant' => new RestaurantResource($this->restaurantSettingService->get()),
+            'order' => new ReceiptResource($order),
+        ]);
     }
 
     public function index(Request $request): JsonResponse

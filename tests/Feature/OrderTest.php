@@ -136,4 +136,15 @@ class OrderTest extends TestCase
             ->patchJson("/api/v1/orders/{$order->id}/status", ['status' => 'confirmed'])
             ->assertStatus(403);
     }
+
+    public function test_guest_can_view_receipt_by_order_number_without_auth(): void
+    {
+        Restaurant::factory()->create(['name' => 'Test Diner']);
+        $order = Order::factory()->create(['order_number' => 'ORD-RECEIPT-001']);
+
+        $this->getJson('/api/v1/orders/ORD-RECEIPT-001/receipt')
+            ->assertOk()
+            ->assertJsonPath('data.restaurant.name', 'Test Diner')
+            ->assertJsonPath('data.order.order_number', 'ORD-RECEIPT-001');
+    }
 }

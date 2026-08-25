@@ -4,7 +4,7 @@ Base URL: `http://localhost:8000/api/v1` (adjust host/port to your environment)
 
 ## Overview
 
-This API powers a single-restaurant QR code ordering system: customers scan a per-table QR code, browse the digital menu, place an order, kitchen staff track and update order status, and cashiers collect cash payment. It also exposes an admin back office (settings, tables, categories, products, staff, dashboard, activity log) for a future Vue.js admin panel.
+This API powers a single-restaurant QR code ordering system: customers scan a per-table QR code, browse the digital menu, place an order, kitchen staff track and update order status, and cashiers collect cash payment. It also exposes an admin back office (settings, tables, categories, products, staff, dashboard, activity log) for the Vue.js admin panel.
 
 ## Response Envelope
 
@@ -53,6 +53,7 @@ Every response follows the same shape.
 | 403 | Forbidden (authenticated, but wrong role) |
 | 404 | Resource not found / invalid QR token / invalid order number |
 | 422 | Validation error or business-rule violation (e.g. invalid status transition, unavailable product) |
+| 429 | Too many requests (rate limit exceeded — see [Rate Limiting](#rate-limiting)) |
 | 500 | Server error |
 
 ## Authentication
@@ -67,7 +68,7 @@ Staff (Admin, Kitchen, Cashier) authenticate via **Laravel Sanctum** personal ac
 
 | Endpoint group | Admin | Kitchen | Cashier | Guest |
 |---|:---:|:---:|:---:|:---:|
-| Menu / Cart / Place Order / Track Order | – | – | – | ✅ (public) |
+| Menu / Cart / Place Order / Track Order / Receipt | – | – | – | ✅ (public) |
 | `GET /orders`, `GET /orders/{id}` | ✅ | ✅ | ✅ | – |
 | `PATCH /orders/{id}/status`, `GET /kitchen/dashboard` | ✅ | ✅ | – | – |
 | `GET /cashier/payments`, `PATCH /cashier/payments/{order}/pay` | ✅ | – | ✅ | – |
@@ -77,15 +78,27 @@ Staff (Admin, Kitchen, Cashier) authenticate via **Laravel Sanctum** personal ac
 
 ```
 pending → confirmed → preparing → ready → completed
-   ↓          ↓            ↓         ↓
-      ­­­­­­­­­­­­­­­­­­­­­­­­­­­­cancelled (any active state, reason required)
 ```
+
+From any of the four active states (`pending`, `confirmed`, `preparing`, `ready`), an order may also transition directly to `cancelled` (a `cancelled_reason` is required). `completed` and `cancelled` are terminal — no further transitions are allowed.
 
 Any transition not listed above returns `422` with message `Cannot transition order from 'X' to 'Y'.`
 
 ## Payment Status
 
 `pending` → `paid` (cash only). A `Payment` row is created automatically the moment an order is placed (status `pending`, amount = order total) and flipped to `paid` by the cashier.
+
+## Rate Limiting
+
+Three named limiters guard abuse-prone endpoints (configurable via `.env`, see `config/ratelimit.php`):
+
+| Limiter | Applies to | Default limit | Keyed by |
+|---|---|---|---|
+| `api` | Every route by default | 60/min | authenticated user ID, else IP |
+| `login` | `POST /auth/login` | 5/min per email+IP, and 20/min per IP | email + IP, and IP alone |
+| `orders` | `POST /orders` | 10/min | IP |
+
+`login` and `orders` routes are excluded from the general `api` limiter (they have their own, tighter limits instead). Exceeding a limit returns `429` with the standard error envelope.
 
 ## Seeded Accounts
 
@@ -105,7 +118,7 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` to enable. When both a
 
 ### Auth
 
-**POST `/auth/login`** — public
+**POST `/auth/login`** — public, rate limited (`login`)
 ```json
 { "email": "admin@restaurant.test", "password": "password" }
 ```
@@ -130,7 +143,9 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` to enable. When both a
 ```
 → `data: { items: [...], subtotal, tax_amount, service_charge_amount, total_amount }`
 
-**POST `/orders`** — places an order.
+Each item: `product_id` required (must exist), `quantity` required integer 1–99, `notes` optional (max 255 chars).
+
+**POST `/orders`** — places an order. Rate limited (`orders`).
 ```json
 {
   "qr_token": "f8j29dj38dk92",
@@ -143,18 +158,21 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` to enable. When both a
   ]
 }
 ```
-→ `201`, full `OrderResource` including generated `order_number`.
+`customer_name` required, `customer_phone`/`notes` optional. → `201`, full `OrderResource` including generated `order_number` (format `ORD-YYYYMMDD-XXXXXX`).
 
 **GET `/orders/track/{order_number}`** — public order status check, no PII returned (no customer name/phone).
 
+**GET `/orders/{order_number}/receipt`** — public printable receipt: restaurant info (name, address, logo, currency) plus order items, totals, and payment status. No PII beyond customer name.
+
 ### Orders (staff)
 
-**GET `/orders?status=&table_id=&date=`** — Admin, Kitchen, Cashier
+**GET `/orders?status=&table_id=&date=`** — Admin, Kitchen, Cashier — paginated, filterable
 **GET `/orders/{id}`** — Admin, Kitchen, Cashier
 **PATCH `/orders/{id}/status`** — Admin, Kitchen
 ```json
 { "status": "cancelled", "cancelled_reason": "Customer left" }
 ```
+`status` must be one of `confirmed`, `preparing`, `ready`, `completed`, `cancelled` (see [state machine](#order-status-state-machine)); `cancelled_reason` required only when cancelling.
 
 ### Kitchen
 
@@ -176,8 +194,16 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` to enable. When both a
 **GET `/admin/settings`**
 **PUT `/admin/settings`** (multipart if uploading `logo`)
 ```json
-{ "name": "The QR Bistro", "tax_percentage": 10, "service_charge_percentage": 5 }
+{
+  "name": "The QR Bistro",
+  "currency": "USD",
+  "tax_percentage": 10,
+  "service_charge_percentage": 5,
+  "opening_time": "09:00",
+  "closing_time": "22:00"
+}
 ```
+All fields optional on update (`sometimes`); `currency` must be a 3-letter code when present.
 
 ### Admin — Tables
 
@@ -189,10 +215,11 @@ Standard REST resource at `/admin/tables` (`index`, `store`, `show`, `update`, `
 ```json
 { "table_number": "T09", "capacity": 4 }
 ```
+`table_number` must be unique; `capacity` 1–50; `status` optional, one of `available`, `occupied`, `reserved`, `inactive`.
 
 ### Admin — Categories
 
-Standard REST resource at `/admin/categories`. `store`/`update` accept multipart with optional `image`.
+Standard REST resource at `/admin/categories`. `store`/`update` accept multipart with optional `image` (max 2MB), plus `is_active` and `sort_order`.
 
 ### Admin — Products
 
@@ -200,6 +227,7 @@ Standard REST resource at `/admin/products`. `index` supports `?category_id=&ava
 ```json
 { "category_id": 1, "name": "Beef Noodle Soup", "price": 6.5, "preparation_time": 15 }
 ```
+`category_id` must exist; `price` numeric ≥ 0; `preparation_time` optional, 1–180 minutes; `image` optional multipart, max 2MB.
 
 ### Admin — Staff Users
 
@@ -207,3 +235,4 @@ Standard REST resource at `/admin/users`.
 ```json
 { "name": "New Cashier", "email": "cashier2@restaurant.test", "password": "password123", "role": "cashier" }
 ```
+`email` must be unique; `password` min 8 chars; `role` one of `admin`, `kitchen`, `cashier`.

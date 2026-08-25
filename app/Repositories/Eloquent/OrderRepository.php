@@ -36,7 +36,7 @@ class OrderRepository implements OrderRepositoryInterface
     public function findByOrderNumber(string $orderNumber): ?Order
     {
         return Order::query()
-            ->with(['table', 'items.product', 'payment'])
+            ->with(['table', 'customer', 'items.product', 'payment'])
             ->where('order_number', $orderNumber)
             ->first();
     }

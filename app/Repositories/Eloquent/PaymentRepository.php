@@ -5,7 +5,9 @@ namespace App\Repositories\Eloquent;
 use App\Contracts\Repositories\PaymentRepositoryInterface;
 use App\Models\Order;
 use App\Models\Payment;
+use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class PaymentRepository implements PaymentRepositoryInterface
 {
@@ -43,5 +45,22 @@ class PaymentRepository implements PaymentRepositoryInterface
             ->where('status', Payment::STATUS_PAID)
             ->whereDate('paid_at', today())
             ->sum('amount');
+    }
+
+    public function revenueSeries(Carbon $from, Carbon $to, string $groupBy): Collection
+    {
+        $format = match ($groupBy) {
+            'month' => '%Y-%m',
+            'week' => '%x-W%v',
+            default => '%Y-%m-%d',
+        };
+
+        return Payment::query()
+            ->selectRaw("DATE_FORMAT(paid_at, '{$format}') as period, SUM(amount) as revenue, COUNT(*) as orders_count")
+            ->where('status', Payment::STATUS_PAID)
+            ->whereBetween('paid_at', [$from, $to])
+            ->groupBy('period')
+            ->orderBy('period')
+            ->get();
     }
 }
