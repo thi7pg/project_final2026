@@ -13,6 +13,7 @@ class UserSeeder extends Seeder
             ['email' => 'admin@restaurant.test'],
             [
                 'name' => 'Restaurant Admin',
+                'username' => 'admin',
                 'password' => 'password',
                 'role' => User::ROLE_ADMIN,
                 'is_active' => true,
@@ -23,6 +24,7 @@ class UserSeeder extends Seeder
             ['email' => 'kitchen@restaurant.test'],
             [
                 'name' => 'Kitchen Staff',
+                'username' => 'kitchen',
                 'password' => 'password',
                 'role' => User::ROLE_KITCHEN,
                 'is_active' => true,
@@ -33,6 +35,7 @@ class UserSeeder extends Seeder
             ['email' => 'cashier@restaurant.test'],
             [
                 'name' => 'Cashier Staff',
+                'username' => 'cashier',
                 'password' => 'password',
                 'role' => User::ROLE_CASHIER,
                 'is_active' => true,

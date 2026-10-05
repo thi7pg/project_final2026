@@ -14,9 +14,9 @@ class AuthService
         protected ActivityLogService $activityLog,
     ) {}
 
-    public function login(string $email, string $password): array
+    public function login(string $username, string $password): array
     {
-        $user = $this->users->findActiveByEmail($email);
+        $user = $this->users->findActiveByUsername($username);
 
         if (! $user || ! Hash::check($password, $user->password)) {
             throw new ApiException('Invalid credentials.', 401);

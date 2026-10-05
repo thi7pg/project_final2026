@@ -20,6 +20,7 @@ class MenuResource extends JsonResource
             'table' => [
                 'id' => $this->resource['table']->id,
                 'table_number' => $this->resource['table']->table_number,
+                'qr_token' => $this->resource['table']->qr_token,
                 'capacity' => $this->resource['table']->capacity,
             ],
             'categories' => CategoryResource::collection($this->resource['categories']),

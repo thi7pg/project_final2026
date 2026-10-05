@@ -54,7 +54,7 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
-    'frontend_menu_url' => env('FRONTEND_MENU_URL', 'http://localhost/menu'),
+    'frontend_menu_url' => env('FRONTEND_MENU_URL', 'http://localhost:5173/order/menu'),
 
     /*
     |--------------------------------------------------------------------------

@@ -33,6 +33,25 @@ class MenuTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_table_code_resolves_to_token_for_cart_validation(): void
+    {
+        $table = DiningTable::factory()->create(['table_number' => 'T001']);
+        $product = Product::factory()->create(['available' => true]);
+        $response = $this->getJson('/api/v1/menu/T001')->assertOk()
+            ->assertJsonPath('data.table.qr_token', $table->qr_token);
+
+        $this->postJson('/api/v1/cart/validate', [
+            'qr_token' => $response->json('data.table.qr_token'),
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertOk();
+    }
+
+    public function test_inactive_table_code_returns_404(): void
+    {
+        DiningTable::factory()->create(['table_number' => 'T002', 'status' => DiningTable::STATUS_INACTIVE]);
+        $this->getJson('/api/v1/menu/T002')->assertNotFound();
+    }
+
     public function test_inactive_table_returns_404(): void
     {
         DiningTable::factory()->create([

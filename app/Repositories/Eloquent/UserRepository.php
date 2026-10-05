@@ -17,16 +17,16 @@ class UserRepository implements UserRepositoryInterface
     public function all(): Collection
     {
         return User::query()->orderBy('name')->get();
-    }
+    }   
 
     public function find(int $id): ?User
     {
         return User::query()->find($id);
     }
 
-    public function findActiveByEmail(string $email): ?User
+    public function findActiveByUsername(string $username): ?User
     {
-        return User::query()->where('email', $email)->where('is_active', true)->first();
+        return User::query()->where('username', $username)->where('is_active', true)->first();
     }
 
     public function create(array $data): User

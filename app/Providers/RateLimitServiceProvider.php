@@ -18,11 +18,11 @@ class RateLimitServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login', function (Request $request) {
-            $email = Str::lower((string) $request->input('email'));
+            $username = Str::lower((string) $request->input('username'));
 
             return [
                 Limit::perMinute(config('ratelimit.login_per_minute'))
-                    ->by($email.'|'.$request->ip()),
+                    ->by($username.'|'.$request->ip()),
                 Limit::perMinute(config('ratelimit.login_per_minute_by_ip'))
                     ->by('login-ip|'.$request->ip()),
             ];

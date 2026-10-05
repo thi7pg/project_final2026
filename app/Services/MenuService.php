@@ -23,7 +23,8 @@ class MenuService
      */
     public function getMenu(string $qrToken): array
     {
-        $table = $this->tables->findByQrToken($qrToken);
+        $table = $this->tables->findByQrToken($qrToken)
+            ?? $this->tables->findByTableNumber($qrToken);
 
         if (! $table || $table->status === DiningTable::STATUS_INACTIVE) {
             throw new ApiException('Invalid or inactive QR code.', 404);

@@ -14,7 +14,7 @@ interface UserRepositoryInterface
 
     public function find(int $id): ?User;
 
-    public function findActiveByEmail(string $email): ?User;
+    public function findActiveByUsername(string $username): ?User;
 
     public function create(array $data): User;
 

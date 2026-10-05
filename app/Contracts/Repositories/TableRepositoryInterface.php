@@ -16,6 +16,8 @@ interface TableRepositoryInterface
 
     public function findByQrToken(string $qrToken): ?DiningTable;
 
+    public function findByTableNumber(string $tableNumber): ?DiningTable;
+
     public function create(array $data): DiningTable;
 
     public function update(DiningTable $table, array $data): DiningTable;

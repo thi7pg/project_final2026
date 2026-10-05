@@ -15,12 +15,13 @@ class AuthTest extends TestCase
         $user = User::factory()->admin()->create(['password' => 'password']);
 
         $response = $this->postJson('/api/v1/auth/login', [
-            'email' => $user->email,
+            'username' => $user->username,
             'password' => 'password',
         ]);
 
         $response->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonPath('data.user.username', $user->username)
             ->assertJsonStructure(['data' => ['user', 'token']]);
     }
 
@@ -29,7 +30,7 @@ class AuthTest extends TestCase
         $user = User::factory()->admin()->create(['password' => 'password']);
 
         $response = $this->postJson('/api/v1/auth/login', [
-            'email' => $user->email,
+            'username' => $user->username,
             'password' => 'wrong-password',
         ]);
 
@@ -42,7 +43,7 @@ class AuthTest extends TestCase
         $user = User::factory()->admin()->inactive()->create(['password' => 'password']);
 
         $response = $this->postJson('/api/v1/auth/login', [
-            'email' => $user->email,
+            'username' => $user->username,
             'password' => 'password',
         ]);
 
@@ -67,5 +68,50 @@ class AuthTest extends TestCase
     public function test_guest_cannot_access_protected_routes(): void
     {
         $this->getJson('/api/v1/auth/me')->assertStatus(401);
+    }
+
+    public function test_email_only_login_is_rejected(): void
+    {
+        $user = User::factory()->create(['password' => 'password']);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertUnprocessable()->assertJsonValidationErrors('username');
+    }
+
+    public function test_unknown_username_cannot_login(): void
+    {
+        $this->postJson('/api/v1/auth/login', [
+            'username' => 'unknown-user',
+            'password' => 'password',
+        ])->assertUnauthorized();
+    }
+
+    public function test_login_requires_password(): void
+    {
+        $this->postJson('/api/v1/auth/login', [
+            'username' => 'admin',
+        ])->assertUnprocessable()->assertJsonValidationErrors('password');
+    }
+
+    public function test_admin_can_create_staff_with_a_unique_username(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $headers = ['Authorization' => 'Bearer '.$admin->createToken('test')->plainTextToken];
+        $payload = [
+            'name' => 'New Kitchen Staff',
+            'username' => 'new-kitchen',
+            'email' => 'new-kitchen@example.test',
+            'password' => 'secure-password',
+            'role' => 'kitchen',
+        ];
+
+        $this->withHeaders($headers)->postJson('/api/v1/admin/users', $payload)
+            ->assertCreated()->assertJsonPath('data.username', 'new-kitchen');
+
+        $payload['email'] = 'another@example.test';
+        $this->withHeaders($headers)->postJson('/api/v1/admin/users', $payload)
+            ->assertUnprocessable()->assertJsonValidationErrors('username');
     }
 }

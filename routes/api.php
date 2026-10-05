@@ -55,20 +55,24 @@ Route::prefix('v1')->group(function () {
             Route::patch('/cashier/payments/{order}/pay', [PaymentController::class, 'pay']);
         });
 
+        // Admin + Cashier: dashboard, table, and menu management
+        Route::middleware('role:admin,cashier')->prefix('admin')->group(function () {
+            Route::get('/dashboard', [DashboardController::class, 'index']);
+            Route::apiResource('tables', TableController::class);
+            Route::post('/tables/{table}/regenerate-qr', [TableController::class, 'regenerateQr']);
+            Route::apiResource('categories', CategoryController::class);
+            Route::apiResource('products', ProductController::class);
+        });
+
         // Admin only
         Route::middleware('role:admin')->prefix('admin')->group(function () {
-            Route::get('/dashboard', [DashboardController::class, 'index']);
             Route::get('/activity-logs', [ActivityLogController::class, 'index']);
             Route::get('/reports/revenue', [ReportController::class, 'revenue']);
 
             Route::get('/settings', [RestaurantSettingController::class, 'show']);
             Route::put('/settings', [RestaurantSettingController::class, 'update']);
 
-            Route::apiResource('tables', TableController::class);
-            Route::post('/tables/{table}/regenerate-qr', [TableController::class, 'regenerateQr']);
 
-            Route::apiResource('categories', CategoryController::class);
-            Route::apiResource('products', ProductController::class);
             Route::apiResource('users', UserController::class);
         });
     });

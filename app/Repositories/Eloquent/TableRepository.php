@@ -29,6 +29,11 @@ class TableRepository implements TableRepositoryInterface
         return DiningTable::query()->where('qr_token', $qrToken)->first();
     }
 
+    public function findByTableNumber(string $tableNumber): ?DiningTable
+    {
+        return DiningTable::query()->where('table_number', $tableNumber)->first();
+    }
+
     public function create(array $data): DiningTable
     {
         return DiningTable::query()->create($data);
